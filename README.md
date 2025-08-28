@@ -58,6 +58,23 @@
 
 </details>
 
+
+<details>
+<summary><b>❓ QUESTIONS & SUPPORT</b></summary>
+
+### 🤔 Need Help?
+- **Issues**: Report bugs and technical problems in [Issues](https://github.com/storedesign/Duo-Bot/issues)
+- **Discussions**: Ask questions, share tips, and connect with the community in [Discussions](https://github.com/storedesign/Duo-Bot/discussions)
+- **Feature Requests**: Suggest new features or improvements
+
+### 💬 Common Questions
+- **How to get Duolingo API token?** - [Follow this guide](https://github.com/storedesign/Duo-Bot/discussions/4)
+- **Workflow not running?** - Verify your repository secrets and workflow permissions
+- **Want to contribute?** - Contributions are welcome!
+
+[💬 **Go to Discussions**](https://github.com/storedesign/Duo-Bot/discussions)
+</details>
+
 <details open>
 <summary><b>⚠️ DISCLAIMER</b></summary>
 
