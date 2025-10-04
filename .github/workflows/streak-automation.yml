@@ -2,7 +2,7 @@ name: Streak Automation
 
 on:
   schedule:
-    - cron: '5 */4 * * *'  # Runs every 4 hours at minute 5 (UTC)
+    - cron: '5 */4 * * *'  # Runs every 4 hours at minute 5 (UTC)!
   workflow_dispatch:        # Allows manual triggering
 
 permissions:
