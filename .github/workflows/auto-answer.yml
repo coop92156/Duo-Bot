@@ -1,0 +1,89 @@
+name: Auto Duolingo Lesson Completion
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auto-duolingo-lesson:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run auto-duolingo-lesson script
+        env:
+          DUOLINGO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
+        run: |
+          #!/bin/bash
+          set -e
+
+          # Fetch the Duolingo token from environment variable
+          DUOLINGO_TOKEN="${DUOLINGO_TOKEN}"
+
+          function fail {
+            echo "❌ $1"
+            exit 1
+          }
+
+          if [ -z "$DUOLINGO_TOKEN" ]; then
+            fail "DUOLINGO_TOKEN environment variable is not set."
+          fi
+
+          echo "🚀 Starting Duolingo auto-answer lesson..."
+
+          # Start a new lesson
+          START_RESPONSE=$(curl -s -X POST "https://api.duolingo.com/lesson/start" \
+            -H "Authorization: Bearer $DUOLINGO_TOKEN" \
+            -H "Content-Type: application/json")
+
+          LESSON_ID=$(echo "$START_RESPONSE" | jq -r '.lesson_id')
+          if [ "$LESSON_ID" == "null" ] || [ -z "$LESSON_ID" ]; then
+            fail "Could not start lesson or parse lesson_id."
+          fi
+
+          echo "📝 Lesson started. Lesson ID: $LESSON_ID"
+
+          # Answer loop
+          while true; do
+            # Get next question
+            QUESTION_RESPONSE=$(curl -s -X GET "https://api.duolingo.com/lesson/$LESSON_ID/question" \
+              -H "Authorization: Bearer $DUOLINGO_TOKEN")
+
+            # Check for lesson completion
+            IS_COMPLETE=$(echo "$QUESTION_RESPONSE" | jq -r '.is_complete')
+            if [ "$IS_COMPLETE" == "true" ]; then
+              echo "🎉 Lesson completed!"
+              break
+            fi
+
+            # Extract correct answer (customize based on API response)
+            CORRECT_ANSWER=$(echo "$QUESTION_RESPONSE" | jq -r '.correct_answer')
+            if [ "$CORRECT_ANSWER" == "null" ] || [ -z "$CORRECT_ANSWER" ]; then
+              fail "Could not find correct answer in question response."
+            fi
+
+            QUESTION_ID=$(echo "$QUESTION_RESPONSE" | jq -r '.question_id')
+            if [ "$QUESTION_ID" == "null" ] || [ -z "$QUESTION_ID" ]; then
+              fail "Could not find question_id in question response."
+            fi
+
+            echo "✅ Answering question $QUESTION_ID with '$CORRECT_ANSWER'..."
+
+            # Submit the answer
+            SUBMIT_RESPONSE=$(curl -s -X POST "https://api.duolingo.com/lesson/$LESSON_ID/answer" \
+              -H "Authorization: Bearer $DUOLINGO_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"question_id\": \"$QUESTION_ID\", \"answer\": \"$CORRECT_ANSWER\"}")
+
+            # (Optional) Print feedback
+            FEEDBACK=$(echo "$SUBMIT_RESPONSE" | jq -r '.feedback')
+            echo "💬 Feedback: $FEEDBACK"
+
+            # (Optional) Sleep to mimic human pace
+            sleep 1
+          done
+
+          echo "🏁 Script finished."
