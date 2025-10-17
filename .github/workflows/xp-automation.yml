@@ -1,10 +1,13 @@
 name: XP Automation
 
 on:
-  workflow_dispatch:        # Allows manual triggering
+  workflow_dispatch:
+  schedule:
+    # Runs at 09:00 UTC on Monday, Tuesday, Wednesday, Thursday
+    - cron: "0 9 * * 1-4"
 
 permissions:
-  contents: read  # Least-privilege permissions for GITHUB_TOKEN
+  contents: write  # Required for committing plan file
 
 jobs:
   send-xp:
@@ -13,14 +16,65 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Setup variables
+        id: vars
+        run: |
+          DAY_OF_WEEK=$(date -u +%u) # 1=Monday ... 7=Sunday
+          echo "day_of_week=$DAY_OF_WEEK" >> $GITHUB_OUTPUT
+          WEEK_YEAR=$(date -u +"%G-%V")
+          echo "week_year=$WEEK_YEAR" >> $GITHUB_OUTPUT
+          PLAN_FILE=".xp_plan_${WEEK_YEAR}.txt"
+          echo "plan_file=$PLAN_FILE" >> $GITHUB_OUTPUT
+
+      - name: Create XP plan if Monday or plan missing
+        id: plan
+        run: |
+          set -e
+          DAY_OF_WEEK="${{ steps.vars.outputs.day_of_week }}"
+          PLAN_FILE="${{ steps.vars.outputs.plan_file }}"
+          if [ "$DAY_OF_WEEK" = "1" ] || [ ! -f "$PLAN_FILE" ]; then
+            # Pick total XP for the week
+            TOTAL_XP=$((RANDOM%16+100))
+            # Randomly split TOTAL_XP into 4 integers
+            # Use sort to get 3 cut points in [0, TOTAL_XP]
+            CUTS=($(shuf -i 0-$TOTAL_XP -n 3 | sort -n))
+            D1=${CUTS[0]}
+            D2=$((CUTS[1]-CUTS[0]))
+            D3=$((CUTS[2]-CUTS[1]))
+            D4=$((TOTAL_XP-CUTS[2]))
+            echo "$D1" > "$PLAN_FILE"
+            echo "$D2" >> "$PLAN_FILE"
+            echo "$D3" >> "$PLAN_FILE"
+            echo "$D4" >> "$PLAN_FILE"
+            echo "Created XP plan for the week: $D1 $D2 $D3 $D4 (total: $TOTAL_XP)"
+            # Commit the plan file
+            git config --global user.name "github-actions"
+            git config --global user.email "actions@github.com"
+            git add "$PLAN_FILE"
+            git commit -m "XP plan for week ${{ steps.vars.outputs.week_year }}" || true
+            git push
+          else
+            echo "Plan file $PLAN_FILE already exists."
+          fi
+
+      - name: Read XP amount for today
+        id: xp
+        run: |
+          PLAN_FILE="${{ steps.vars.outputs.plan_file }}"
+          DAY_OF_WEEK="${{ steps.vars.outputs.day_of_week }}"
+          XP=$(sed -n "${DAY_OF_WEEK}p" "$PLAN_FILE")
+          echo "Today's XP: $XP"
+          echo "xp=$XP" >> $GITHUB_OUTPUT
+
       - name: Run XP request
         run: |
+          XP_AMOUNT=${{ steps.xp.outputs.xp }}
           echo "⏳ Waiting 10 seconds..."
           sleep 10
           echo "📤 Sending XP request..."
           RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/request \
             -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"gain_type": "xp", "amount": 30000}')
+            -d "{\"gain_type\": \"xp\", \"amount\": $XP_AMOUNT}")
           echo "📨 Response from server:"
           echo "$RESPONSE"
