@@ -13,34 +13,83 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Run auto-duolingo-lesson script
+      - name: Run auto-duolingo-lesson script (improved logging + debug)
         env:
           DUOLINGO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
         run: |
           #!/bin/bash
-          set -e
-
-          # Fetch the Duolingo token from environment variable
-          DUOLINGO_TOKEN="${DUOLINGO_TOKEN}"
+          set -euo pipefail
 
           function fail {
             echo "❌ $1"
             exit 1
           }
 
-          if [ -z "$DUOLINGO_TOKEN" ]; then
-            fail "DUOLINGO_TOKEN environment variable is not set."
+          if [ -z "${DUOLINGO_TOKEN:-}" ]; then
+            fail "DUOLINGO_TOKEN environment variable is not set. Add it in repository Secrets."
           fi
+
+          # Masked token info for logs (never print full token)
+          echo "🚨 DUOLINGO_TOKEN is set (length: ${#DUOLINGO_TOKEN} chars). Token will be masked in logs."
+
+          echo "🔧 Installing utilities (jq)..."
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq
+
+          # Helper to run curl and return body+status; prints truncated body for debugging
+          function curl_with_status {
+            local method=$1
+            local url=$2
+            local data=${3:-}
+            local tmp_body
+            tmp_body=$(mktemp)
+            if [ -n "$data" ]; then
+              http_code=$(curl -sS -X "$method" "$url" \
+                -H "Authorization: Bearer $DUOLINGO_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$data" \
+                -o "$tmp_body" -w "%{http_code}")
+            else
+              http_code=$(curl -sS -X "$method" "$url" \
+                -H "Authorization: Bearer $DUOLINGO_TOKEN" \
+                -H "Content-Type: application/json" \
+                -o "$tmp_body" -w "%{http_code}")
+            fi
+
+            body=$(cat "$tmp_body" || true)
+            # Show a short preview of body (first 200 chars) for debugging
+            echo "HTTP $http_code - response preview:"
+            echo "----------------------------------------"
+            echo "$body" | sed -n '1,20p'
+            echo "----------------------------------------"
+            # return values via stdout: body and exit status code in last line
+            echo "<<<BODY_START>>>"
+            echo "$body"
+            echo "<<<BODY_END>>>"
+            echo "$http_code"
+            rm -f "$tmp_body"
+          }
 
           echo "🚀 Starting Duolingo auto-answer lesson..."
 
           # Start a new lesson
-          START_RESPONSE=$(curl -s -X POST "https://api.duolingo.com/lesson/start" \
-            -H "Authorization: Bearer $DUOLINGO_TOKEN" \
-            -H "Content-Type: application/json")
+          echo "➡️ POST /lesson/start"
+          start_out=$(curl_with_status "POST" "https://api.duolingo.com/lesson/start")
+          # parse body and status
+          start_body=$(printf '%s\n' "$start_out" | sed -n '/<<<BODY_START>>>/,/<<<BODY_END>>>/p' | sed '1d;$d' || true)
+          start_http=$(printf '%s\n' "$start_out" | tail -n1)
 
-          LESSON_ID=$(echo "$START_RESPONSE" | jq -r '.lesson_id')
-          if [ "$LESSON_ID" == "null" ] || [ -z "$LESSON_ID" ]; then
+          if [ "$start_http" -ne 200 ]; then
+            echo "Failed to POST /lesson/start: HTTP $start_http"
+            echo "Full response (truncated below):"
+            echo "$start_body" | sed -n '1,200p'
+            fail "Start lesson request failed."
+          fi
+
+          LESSON_ID=$(echo "$start_body" | jq -r '.lesson_id // empty')
+          if [ -z "$LESSON_ID" ]; then
+            echo "Could not extract lesson_id. Full start response:"
+            echo "$start_body" | sed -n '1,200p'
             fail "Could not start lesson or parse lesson_id."
           fi
 
@@ -48,41 +97,56 @@ jobs:
 
           # Answer loop
           while true; do
-            # Get next question
-            QUESTION_RESPONSE=$(curl -s -X GET "https://api.duolingo.com/lesson/$LESSON_ID/question" \
-              -H "Authorization: Bearer $DUOLINGO_TOKEN")
+            echo "➡️ GET /lesson/$LESSON_ID/question"
+            q_out=$(curl_with_status "GET" "https://api.duolingo.com/lesson/$LESSON_ID/question")
+            q_body=$(printf '%s\n' "$q_out" | sed -n '/<<<BODY_START>>>/,/<<<BODY_END>>>/p' | sed '1d;$d' || true)
+            q_http=$(printf '%s\n' "$q_out" | tail -n1)
 
-            # Check for lesson completion
-            IS_COMPLETE=$(echo "$QUESTION_RESPONSE" | jq -r '.is_complete')
+            if [ "$q_http" -ne 200 ]; then
+              echo "GET question returned HTTP $q_http. Response preview:"
+              echo "$q_body" | sed -n '1,200p'
+              fail "Failed to fetch question."
+            fi
+
+            IS_COMPLETE=$(echo "$q_body" | jq -r '.is_complete // false')
             if [ "$IS_COMPLETE" == "true" ]; then
               echo "🎉 Lesson completed!"
               break
             fi
 
-            # Extract correct answer (customize based on API response)
-            CORRECT_ANSWER=$(echo "$QUESTION_RESPONSE" | jq -r '.correct_answer')
-            if [ "$CORRECT_ANSWER" == "null" ] || [ -z "$CORRECT_ANSWER" ]; then
-              fail "Could not find correct answer in question response."
+            # Try to extract a correct answer; structure may vary depending on actual API
+            CORRECT_ANSWER=$(echo "$q_body" | jq -r '.correct_answer // .correct_answer_text // empty')
+            QUESTION_ID=$(echo "$q_body" | jq -r '.question_id // .id // empty')
+
+            if [ -z "$CORRECT_ANSWER" ] || [ -z "$QUESTION_ID" ]; then
+              echo "Could not find correct answer or question_id in question response. Full response:"
+              echo "$q_body" | sed -n '1,200p'
+              fail "Missing answer or question ID fields — the API response shape may differ from the script expectations."
             fi
 
-            QUESTION_ID=$(echo "$QUESTION_RESPONSE" | jq -r '.question_id')
-            if [ "$QUESTION_ID" == "null" ] || [ -z "$QUESTION_ID" ]; then
-              fail "Could not find question_id in question response."
+            echo "✅ Answering question $QUESTION_ID with a masked answer preview (first 40 chars):"
+            echo "${CORRECT_ANSWER:0:40}..."
+
+            submit_payload=$(jq -nc --arg qid "$QUESTION_ID" --arg ans "$CORRECT_ANSWER" '{question_id: $qid, answer: $ans}')
+            echo "➡️ POST /lesson/$LESSON_ID/answer"
+            s_out=$(curl_with_status "POST" "https://api.duolingo.com/lesson/$LESSON_ID/answer" "$submit_payload")
+            s_body=$(printf '%s\n' "$s_out" | sed -n '/<<<BODY_START>>>/,/<<<BODY_END>>>/p' | sed '1d;$d' || true)
+            s_http=$(printf '%s\n' "$s_out" | tail -n1)
+
+            if [ "$s_http" -ne 200 ]; then
+              echo "Answer submit returned HTTP $s_http. Response preview:"
+              echo "$s_body" | sed -n '1,200p'
+              fail "Failed to submit answer."
             fi
 
-            echo "✅ Answering question $QUESTION_ID with '$CORRECT_ANSWER'..."
+            FEEDBACK=$(echo "$s_body" | jq -r '.feedback // empty')
+            if [ -n "$FEEDBACK" ]; then
+              echo "💬 Feedback: $FEEDBACK"
+            else
+              echo "💬 No feedback field in submit response (response preview above)."
+            fi
 
-            # Submit the answer
-            SUBMIT_RESPONSE=$(curl -s -X POST "https://api.duolingo.com/lesson/$LESSON_ID/answer" \
-              -H "Authorization: Bearer $DUOLINGO_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"question_id\": \"$QUESTION_ID\", \"answer\": \"$CORRECT_ANSWER\"}")
-
-            # (Optional) Print feedback
-            FEEDBACK=$(echo "$SUBMIT_RESPONSE" | jq -r '.feedback')
-            echo "💬 Feedback: $FEEDBACK"
-
-            # (Optional) Sleep to mimic human pace
+            # Small sleep to mimic human pace
             sleep 1
           done
 
