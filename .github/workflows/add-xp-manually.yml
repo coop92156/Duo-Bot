@@ -21,6 +21,6 @@ jobs:
           RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/request \
             -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"gain_type": "xp", "amount": 1000}')
+            -d '{"gain_type": "xp", "amount": 50000}')
           echo "📨 Response from server:"
           echo "$RESPONSE"
