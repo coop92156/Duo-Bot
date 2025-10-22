@@ -2,7 +2,7 @@ name: XP Automation 1.1
 
 on:
   schedule:
-    - cron: '*/1 * * * *'  # Runs every 1 minute (UTC)
+    - cron: '1 */0 * * *'  # Runs every 4 hours at minute 5 (UTC)
   workflow_dispatch:        # Allows manual triggering
 
 permissions:
@@ -26,3 +26,4 @@ jobs:
             -d '{"gain_type": "xp", "amount": 30000}')
           echo "📨 Response from server:"
           echo "$RESPONSE"
+
