@@ -2,7 +2,7 @@ name: XP Automation 1.1
 
 on:
   schedule:
-    - cron: '1 */0 * * *'  # Runs every 4 hours at minute 5 (UTC)
+    - cron: '2 */* * * *'  # Runs every 4 hours at minute 5 (UTC)
   workflow_dispatch:        # Allows manual triggering
 
 permissions:
