@@ -21,6 +21,6 @@ jobs:
           RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/streak \
             -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"amount": 1000}')
+            -d '{"amount": 100}')
           echo "📨 Response from server:"
           echo "$RESPONSE"
