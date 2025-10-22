@@ -2,11 +2,11 @@ name: XP Automation 1.1
 
 on:
   schedule:
-    - cron: '*/1 * * * *'  # ✅ Runs every 1 minute (UTC)
-  workflow_dispatch:        # Allows manual triggering
+    - cron: '*/5 * * * *'  # Triggers every 5 minutes
+  workflow_dispatch:
 
 permissions:
-  contents: read  # Least-privilege permissions for GITHUB_TOKEN
+  contents: read
 
 jobs:
   send-xp:
@@ -15,14 +15,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Run XP request
+      - name: Send XP every 1 minute (5 times)
         run: |
-          echo "⏳ Waiting 10 seconds..."
-          sleep 10
-          echo "📤 Sending XP request..."
-          RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/request \
-            -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{"gain_type": "xp", "amount": 30000}')
-          echo "📨 Response from server:"
-          echo "$RESPONSE"
+          echo "🚀 Starting 5-minute loop..."
+          for i in {1..5}; do
+            echo "📤 Sending XP request ($i/5)..."
+            RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/request \
+              -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d '{"gain_type": "xp", "amount": 30000}')
+            echo "📨 Response: $RESPONSE"
+            echo "⏳ Waiting 60 seconds..."
+            sleep 60
+          done
