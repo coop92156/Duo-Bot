@@ -1,29 +1,38 @@
-  - name: Run XP request
-    run: |
-      set -euo pipefail
+name: XP Automation
 
-      # load secret into a shell variable and verify it's present
-      TOKEN="${{ secrets.DUOLINGO_TOKEN }}"
-      if [ -z "$TOKEN" ]; then
-        echo "❌ DUOLINGO_TOKEN is not set. Add it to repo Settings → Secrets and variables → Actions."
-        exit 1
-      fi
+on:
+  workflow_dispatch:
 
-      echo "⏳ Waiting 10 seconds..."
-      sleep 10
+jobs:
+  xp_request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run XP request
+        run: |
+          set -euo pipefail
 
-      echo "📤 Sending XP request..."
-      # Do NOT use --fail here (it exits immediately on 4xx/5xx). Capture HTTP status via -w.
-      HTTP_STATUS=$(curl -sS -o response.txt -w "%{http_code}" -X POST "https://api.duolingopro.net/request" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"gain_type":"xp","amount":100}')
+          # load secret into a shell variable and verify it's present
+          TOKEN="${{ secrets.DUOLINGO_TOKEN }}"
+          if [ -z "$TOKEN" ]; then
+            echo "❌ DUOLINGO_TOKEN is not set. Add it to repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
 
-      BODY="$(cat response.txt || true)"
-      echo "📨 Response from server ($HTTP_STATUS):"
-      echo "$BODY"
+          echo "⏳ Waiting 10 seconds..."
+          sleep 10
 
-      if [ "$HTTP_STATUS" -ne 200 ]; then
-        echo "❌ Request failed with status $HTTP_STATUS"
-        exit 1
-      fi
+          echo "📤 Sending XP request..."
+          # Do NOT use --fail here (it exits immediately on 4xx/5xx). Capture HTTP status via -w.
+          HTTP_STATUS=$(curl -sS -o response.txt -w "%{http_code}" -X POST "https://api.duolingopro.net/request" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"gain_type":"xp","amount":100}')
+
+          BODY="$(cat response.txt || true)"
+          echo "📨 Response from server ($HTTP_STATUS):"
+          echo "$BODY"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "❌ Request failed with status $HTTP_STATUS"
+            exit 1
+          fi
