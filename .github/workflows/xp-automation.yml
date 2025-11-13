@@ -1,7 +1,6 @@
 name: XP Automation
 
 on:
-  
   workflow_dispatch:        # Allows manual triggering
 
 permissions:
@@ -12,17 +11,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3   # Updated from v2 for latest support
 
       - name: Run XP request
         run: |
+          set -e
           echo "⏳ Waiting 10 seconds..."
           sleep 10
           echo "📤 Sending XP request..."
-          RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/request \
+          RESPONSE=$(curl --fail --show-error --ssl-no-revoke -s -w "%{http_code}" -o response.txt -X POST https://api.duolingopro.net/request \
             -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"gain_type": "xp", "amount": 100}')
-          echo "📨 Response from server:"
-          echo "$RESPONSE"
-
+          HTTP_STATUS=$(tail -c 3 response.txt)
+          BODY=$(head -c -3 response.txt)
+          echo "📨 Response from server ($HTTP_STATUS):"
+          echo "$BODY"
+          if [[ "$HTTP_STATUS" -ne 200 ]]; then
+            echo "❌ Request failed with status $HTTP_STATUS"
+            exit 1
+          fi
