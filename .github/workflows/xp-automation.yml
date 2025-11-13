@@ -1,8 +1,7 @@
 name: XP Automation
 
 on:
-  schedule:
-    - cron: '5 */4 * * *'  # Runs every 4 hours at minute 5 (UTC)
+  
   workflow_dispatch:        # Allows manual triggering
 
 permissions:
@@ -23,7 +22,7 @@ jobs:
           RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/request \
             -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"gain_type": "xp", "amount": 30000}')
+            -d '{"gain_type": "xp", "amount": 100}')
           echo "📨 Response from server:"
           echo "$RESPONSE"
 
