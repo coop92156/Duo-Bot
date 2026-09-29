@@ -20,7 +20,7 @@ jobs:
             -H "Accept-Language: en-US,en;q=0.9" \
             -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"gain_type": "super", "amount": 1}')
+            -d "{\"token\": \"${{ secrets.DUOLINGO_TOKEN }}\", \"gain_type\": \"super\", \"amount\": 1}")
           
           echo "📝 Response from server:"
           echo "$RESPONSE"
