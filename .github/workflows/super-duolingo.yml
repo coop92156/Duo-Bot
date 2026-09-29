@@ -6,20 +6,51 @@ on:
   workflow_dispatch:
 
 jobs:
-  request-super:
+  run-duo:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Send Super Request
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
         run: |
-          RESPONSE=$(curl --ssl-no-revoke -s -X POST "https://api.duolingopro.net/request" \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
-            -H "Accept: application/json, text/plain, */*" \
-            -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{"gain_type":"super","amount":1}')
+          python -m pip install --upgrade pip
+          pip install duopy requests
+
+      - name: Run Duolingo Session
+        env:
+          DUO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
+        run: |
+          python -c "
+          import os, sys, requests
           
-          echo "📝 Response from server:"
-          echo "$RESPONSE"
+          jwt = os.environ.get('DUO_TOKEN')
+          if not jwt:
+              print('❌ Error: DUOLINGO_TOKEN secret is missing!')
+              sys.exit(1)
+              
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              'Authorization': f'Bearer {jwt}',
+              'Content-Type': 'application/json'
+          }
+          
+          # Fetch user info directly from Duolingo
+          res = requests.get('https://www.duolingo.com/2017-06-30/users?mine=true', headers=headers)
+          if res.status_code == 200:
+              data = res.json()
+              users = data.get('users', [])
+              if users:
+                  user = users[0]
+                  print(f'✅ Successfully connected as: {user.get(\"username\")} (Streak: {user.get(\"streak\")})')
+              else:
+                  print('✅ Connected to Duolingo API successfully!')
+          else:
+              print(f'❌ Request failed with status code {res.status_code}: {res.text}')
+          "
