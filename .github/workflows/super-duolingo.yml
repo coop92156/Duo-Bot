@@ -1,29 +1,26 @@
-name: Super Automation
+name: Super Duolingo
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Every day at 00:00 UTC
-  workflow_dispatch:  # Allow manual run too
-
-permissions:
-  contents: read
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   request-super:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Send Super Request
         run: |
-          echo "🚀 Requesting Super..."
-          RESPONSE=$(curl --ssl-no-revoke -s -X POST https://api.duolingopro.net/request \
-        -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
-        -H "Accept: application/json, text/plain, */*" \
-        -H "Accept-Language: en-US,en;q=0.9" \
-        -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
-        -H "Content-Type: application/json" \
-        -d '{"gain_type": "super", "amount": 1}')
+          RESPONSE=$(curl --ssl-no-revoke -s -X POST "https://api.duolingopro.net/request" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+            -H "Accept: application/json, text/plain, */*" \
+            -H "Accept-Language: en-US,en;q=0.9" \
+            -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"gain_type": "super", "amount": 1}')
+          
           echo "📝 Response from server:"
           echo "$RESPONSE"
