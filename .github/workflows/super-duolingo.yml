@@ -16,9 +16,10 @@ jobs:
         run: |
           RESPONSE=$(curl --ssl-no-revoke -s -X POST "https://api.duolingopro.net/request" \
             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+            -H "Accept: application/json, text/plain, */*" \
             -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "type=super")
+            -H "Content-Type: application/json" \
+            -d '{"gain_type":"super","amount":1}')
           
           echo "📝 Response from server:"
           echo "$RESPONSE"
