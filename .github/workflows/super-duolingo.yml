@@ -18,50 +18,48 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests
+          pip install playwright
+          playwright install chromium --with-deps
 
       - name: Run Duolingo Session
         env:
           DUO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
         run: |
           python -c "
-          import os, sys, requests, base64, json
+          import os, sys
+          from playwright.sync_api import sync_playwright
 
           jwt = os.environ.get('DUO_TOKEN', '').strip()
           if not jwt:
-              print('❌ Error: DUOLINGO_TOKEN secret is missing!')
+              print('❌ Error: DUOLINGO_TOKEN secret is missing or empty!')
               sys.exit(1)
 
-          # Extract username directly from the JWT token payload
-          try:
-              payload_b64 = jwt.split('.')[1] + '=='
-              payload = json.loads(base64.urlsafe_b64decode(payload_b64))
-              username = payload.get('sub')
-          except Exception:
-              username = None
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              context = browser.new_context(
+                  user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+              )
 
-          headers = {
-              'User-Agent': 'DuolingoMobile/5.100.0 (iPhone; iOS 16.0; Scale/3.00)',
-              'Authorization': f'Bearer {jwt}',
-              'Content-Type': 'application/json'
-          }
+              # Pass your session cookie straight into the browser context
+              context.add_cookies([{
+                  'name': 'jwt_token',
+                  'value': jwt,
+                  'domain': '.duolingo.com',
+                  'path': '/'
+              }])
 
-          url = f'https://android-api-5.duolingo.com/2017-06-30/users?username={username}' if username else 'https://android-api-5.duolingo.com/2017-06-30/users?mine=true'
-          
-          res = requests.get(url, headers=headers)
+              page = context.new_page()
+              print('🌐 Navigating to Duolingo learn page...')
+              page.goto('https://www.duolingo.com/learn', wait_until='networkidle')
 
-          if res.status_code == 200:
-              data = res.json()
-              users = data.get('users', [])
-              if users:
-                  user = users[0]
-                  print(f'✅ Connected successfully as: {user.get(\"username\")} | Current Streak: {user.get(\"streak\")} days!')
-              else:
-                  print('✅ Connected to Duolingo API successfully!')
-          else:
-              print(f'❌ Request failed with status code {res.status_code}: {res.text[:200]}')
-              sys.exit(1)
+              if 'login' in page.url:
+                  print('❌ Login failed: JWT token is invalid or expired!')
+                  browser.close()
+                  sys.exit(1)
+
+              print(f'✅ Successfully logged in! Loaded page title: {page.title()}')
+              browser.close()
           "
