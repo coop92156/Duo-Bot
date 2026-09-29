@@ -28,32 +28,40 @@ jobs:
           DUO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
         run: |
           python -c "
-          import os, sys, requests
-          
+          import os, sys, requests, base64, json
+
           jwt = os.environ.get('DUO_TOKEN', '').strip()
           if not jwt:
-              print('❌ Error: DUOLINGO_TOKEN secret is empty or missing in GitHub Secrets!')
+              print('❌ Error: DUOLINGO_TOKEN secret is missing!')
               sys.exit(1)
-              
+
+          # Extract username directly from the JWT token payload
+          try:
+              payload_b64 = jwt.split('.')[1] + '=='
+              payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+              username = payload.get('sub')
+          except Exception:
+              username = None
+
           headers = {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              'User-Agent': 'DuolingoMobile/5.100.0 (iPhone; iOS 16.0; Scale/3.00)',
               'Authorization': f'Bearer {jwt}',
               'Content-Type': 'application/json'
           }
+
+          url = f'https://android-api-5.duolingo.com/2017-06-30/users?username={username}' if username else 'https://android-api-5.duolingo.com/2017-06-30/users?mine=true'
           
-          res = requests.get('https://www.duolingo.com/2017-06-30/users?mine=true', headers=headers)
+          res = requests.get(url, headers=headers)
+
           if res.status_code == 200:
               data = res.json()
               users = data.get('users', [])
               if users:
                   user = users[0]
-                  print(f'✅ Connected successfully as: {user.get(\"username\")} | Streak: {user.get(\"streak\")} days')
+                  print(f'✅ Connected successfully as: {user.get(\"username\")} | Current Streak: {user.get(\"streak\")} days!')
               else:
                   print('✅ Connected to Duolingo API successfully!')
-          elif res.status_code == 401:
-              print('❌ Error 401: Unauthorized. Your DUOLINGO_TOKEN is invalid or expired!')
-              sys.exit(1)
           else:
-              print(f'❌ Request failed with status code {res.status_code}: {res.text}')
+              print(f'❌ Request failed with status code {res.status_code}: {res.text[:200]}')
               sys.exit(1)
           "
