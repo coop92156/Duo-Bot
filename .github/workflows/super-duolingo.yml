@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install duopy requests
+          pip install requests
 
       - name: Run Duolingo Session
         env:
@@ -30,9 +30,9 @@ jobs:
           python -c "
           import os, sys, requests
           
-          jwt = os.environ.get('DUO_TOKEN')
+          jwt = os.environ.get('DUO_TOKEN', '').strip()
           if not jwt:
-              print('❌ Error: DUOLINGO_TOKEN secret is missing!')
+              print('❌ Error: DUOLINGO_TOKEN secret is empty or missing in GitHub Secrets!')
               sys.exit(1)
               
           headers = {
@@ -41,16 +41,19 @@ jobs:
               'Content-Type': 'application/json'
           }
           
-          # Fetch user info directly from Duolingo
           res = requests.get('https://www.duolingo.com/2017-06-30/users?mine=true', headers=headers)
           if res.status_code == 200:
               data = res.json()
               users = data.get('users', [])
               if users:
                   user = users[0]
-                  print(f'✅ Successfully connected as: {user.get(\"username\")} (Streak: {user.get(\"streak\")})')
+                  print(f'✅ Connected successfully as: {user.get(\"username\")} | Streak: {user.get(\"streak\")} days')
               else:
                   print('✅ Connected to Duolingo API successfully!')
+          elif res.status_code == 401:
+              print('❌ Error 401: Unauthorized. Your DUOLINGO_TOKEN is invalid or expired!')
+              sys.exit(1)
           else:
               print(f'❌ Request failed with status code {res.status_code}: {res.text}')
+              sys.exit(1)
           "
