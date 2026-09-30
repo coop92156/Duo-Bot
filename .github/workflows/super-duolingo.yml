@@ -43,7 +43,7 @@ jobs:
                   user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
               )
 
-              # Pass your session cookie straight into the browser context
+              # Inject jwt_token cookie directly into browser context
               context.add_cookies([{
                   'name': 'jwt_token',
                   'value': jwt,
@@ -52,14 +52,17 @@ jobs:
               }])
 
               page = context.new_page()
-              print('🌐 Navigating to Duolingo learn page...')
-              page.goto('https://www.duolingo.com/learn', wait_until='networkidle')
+              print('🌐 Navigating to Duolingo...')
+              
+              # Wait for HTML DOM load instead of waiting for network to go idle
+              page.goto('https://www.duolingo.com/learn', wait_until='domcontentloaded', timeout=60000)
+              page.wait_for_timeout(5000)
 
               if 'login' in page.url:
                   print('❌ Login failed: JWT token is invalid or expired!')
                   browser.close()
                   sys.exit(1)
 
-              print(f'✅ Successfully logged in! Loaded page title: {page.title()}')
+              print(f'✅ Successfully logged in! Page Title: {page.title()}')
               browser.close()
           "
