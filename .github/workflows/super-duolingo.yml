@@ -21,6 +21,6 @@ jobs:
               \"duolingoToken\": \"$DUO_TOKEN\",
               \"userId\": \"1672849858\",
               \"fromLanguage\": \"en\",
-              \"learningLanguage\": \"es\",
+              \"learningLanguage\": \"zh\",
               \"challengeTime\": 60
             }"
