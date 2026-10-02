@@ -7,7 +7,7 @@ app.use(express.json());
 const DUOLINGO_BASE = "https://www.duolingo.com";
 const MY_API_KEY = process.env.MY_API_KEY;
 
-// API Key Security Guard
+// Security Middleware: Verifies API Key from GitHub Actions
 app.use((req, res, next) => {
   const apiKeyHeader = req.headers['x-api-key'];
   if (!MY_API_KEY || apiKeyHeader !== MY_API_KEY) {
@@ -18,7 +18,7 @@ app.use((req, res, next) => {
 
 app.post('/api/session/complete', async (req, res) => {
   try {
-    const { userId, duolingoToken, challengeTime = 60, fromLanguage = "en", learningLanguage = "es" } = req.body;
+    const { userId, duolingoToken, challengeTime = 60, fromLanguage = "en", learningLanguage = "zh" } = req.body;
 
     if (!userId || !duolingoToken) {
       return res.status(400).json({ error: "Missing userId or duolingoToken" });
@@ -31,7 +31,7 @@ app.post('/api/session/complete', async (req, res) => {
       'Accept': 'application/json'
     };
 
-    // 1. Create a practice session
+    // 1. Create practice session
     const sessionInitPayload = {
       challengeTypes: ["characterMatch", "translate"],
       fromLanguage,
@@ -42,7 +42,7 @@ app.post('/api/session/complete', async (req, res) => {
     const sessionRes = await axios.post(`${DUOLINGO_BASE}/2017-06-30/sessions`, sessionInitPayload, { headers });
     const sessionData = sessionRes.data;
 
-    // 2. Submit the completed session to claim XP
+    // 2. Complete session with extra XP parameters
     const completionPayload = {
       ...sessionData,
       heartsModifier: 'NONE',
