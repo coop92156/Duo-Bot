@@ -21,6 +21,6 @@ jobs:
           RESPONSE=$(curl --ssl-no-revoke -s -X POST https://duo-bot-api.onrender.com/api/session/complete \
             -H "x-api-key: ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"type": "super"}')
+            -d '{"userId": "1672849858", "duolingoToken": "${{ secrets.DUOLINGO_TOKEN }}"}')
           echo "📝 Response from server:"
           echo "$RESPONSE"
