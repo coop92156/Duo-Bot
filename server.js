@@ -31,18 +31,18 @@ app.post('/api/session/complete', async (req, res) => {
       'Accept': 'application/json'
     };
 
-    // 1. Create practice session
+    // 1. Create a lesson session
     const sessionInitPayload = {
       challengeTypes: ["characterMatch", "translate"],
       fromLanguage,
       learningLanguage,
-      type: "PRACTICE"
+      type: "LESSON"
     };
 
     const sessionRes = await axios.post(`${DUOLINGO_BASE}/2017-06-30/sessions`, sessionInitPayload, { headers });
     const sessionData = sessionRes.data;
 
-    // 2. Complete session with extra XP parameters
+    // 2. Submit session completion to grant XP
     const completionPayload = {
       ...sessionData,
       heartsModifier: 'NONE',
