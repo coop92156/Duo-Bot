@@ -19,8 +19,8 @@ jobs:
         run: |
           echo "🚀 Requesting Super..."
           RESPONSE=$(curl --ssl-no-revoke -s -X POST https://duo-bot-api.onrender.com/api/session/complete \
-            -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
+            -H "x-api-key: ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"gain_type": "super", "amount": 1}')
+            -d '{"type": "super"}')
           echo "📝 Response from server:"
           echo "$RESPONSE"
