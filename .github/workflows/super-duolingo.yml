@@ -17,8 +17,10 @@ jobs:
           curl -i -X POST "https://duo-bot-api.onrender.com/api/session/complete" \
             -H "X-API-Key: $API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{
-              "duolingoToken": "'"$DUO_TOKEN"'",
-              "userId": "1672849858",
-              "challengeTime": 60
-            }'
+            -d "{
+              \"duolingoToken\": \"$DUO_TOKEN\",
+              \"userId\": \"1672849858\",
+              \"fromLanguage\": \"en\",
+              \"learningLanguage\": \"es\",
+              \"challengeTime\": 60
+            }"
