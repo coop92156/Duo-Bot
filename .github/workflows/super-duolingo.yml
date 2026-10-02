@@ -1,26 +1,26 @@
-name: Super Duolingo
+name: Super Automation
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *'  # Every day at 00:00 UTC
+  workflow_dispatch:  # Allow manual run too
+
+permissions:
+  contents: read
 
 jobs:
-  run-duo:
+  request-super:
     runs-on: ubuntu-latest
     steps:
-      - name: Request Session via Private API
-        env:
-          API_KEY: ${{ secrets.MY_API_KEY }}
-          DUO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Send Super Request
         run: |
-          curl -i -X POST "https://duo-bot-api.onrender.com/api/session/complete" \
-            -H "X-API-Key: $API_KEY" \
+          echo "🚀 Requesting Super..."
+          RESPONSE=$(curl --ssl-no-revoke -s -X POST https://duo-bot-api.onrender.com/api/session/complete \
+            -H "Authorization: Bearer ${{ secrets.DUOLINGO_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"duolingoToken\": \"$DUO_TOKEN\",
-              \"userId\": \"1672849858\",
-              \"fromLanguage\": \"en\",
-              \"learningLanguage\": \"zh\",
-              \"challengeTime\": 60
-            }"
+            -d '{"gain_type": "super", "amount": 1}')
+          echo "📝 Response from server:"
+          echo "$RESPONSE"
