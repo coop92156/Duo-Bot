@@ -13,10 +13,10 @@ jobs:
         env:
           DUO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
         run: |
-          curl -s -X POST "https://duo-bot-api.onrender.com/api/session/complete" \
+          curl -i -X POST "https://duo-bot-api.onrender.com/api/session/complete" \
             -H "Authorization: Bearer $DUO_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "userId": "YOUR_DUOLINGO_USER_ID",
+              "userId": "1672849858",
               "challengeTime": 60
             }'
