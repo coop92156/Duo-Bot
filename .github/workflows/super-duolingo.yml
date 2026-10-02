@@ -11,12 +11,14 @@ jobs:
     steps:
       - name: Request Session via Private API
         env:
+          API_KEY: ${{ secrets.MY_API_KEY }}
           DUO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
         run: |
           curl -i -X POST "https://duo-bot-api.onrender.com/api/session/complete" \
-            -H "Authorization: Bearer $DUO_TOKEN" \
+            -H "X-API-Key: $API_KEY" \
             -H "Content-Type: application/json" \
             -d '{
-              "userId": "1672849858",
+              "duolingoToken": "'"$DUO_TOKEN"'",
+              "userId": "PASTE_YOUR_NUMERIC_ID_HERE",
               "challengeTime": 60
             }'
