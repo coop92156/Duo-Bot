@@ -8,80 +8,15 @@ on:
 jobs:
   run-duo:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install playwright
-          playwright install chromium --with-deps
-
-      - name: Request Super Duolingo
+      - name: Request Session via Private API
         env:
           DUO_TOKEN: ${{ secrets.DUOLINGO_TOKEN }}
         run: |
-          python -c "
-          import os, sys
-          from playwright.sync_api import sync_playwright
-
-          jwt = os.environ.get('DUO_TOKEN', '').strip()
-          if not jwt:
-              print('❌ Error: DUOLINGO_TOKEN secret is missing!')
-              sys.exit(1)
-
-          with sync_playwright() as p:
-              browser = p.chromium.launch(headless=True)
-              context = browser.new_context(
-                  user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-              )
-
-              # Inject jwt_token cookie directly into the browser session
-              context.add_cookies([{
-                  'name': 'jwt_token',
-                  'value': jwt,
-                  'domain': '.duolingo.com',
-                  'path': '/'
-              }])
-
-              page = context.new_page()
-              print('🌐 Navigating to Duolingo...')
-              page.goto('https://www.duolingo.com/learn', wait_until='domcontentloaded', timeout=60000)
-              page.wait_for_timeout(3000)
-
-              if 'login' in page.url:
-                  print('❌ Login failed: JWT token is invalid or expired!')
-                  browser.close()
-                  sys.exit(1)
-
-              print('⚡ Requesting Super Duolingo state directly...')
-              
-              # Execute Super Duolingo request via fetch inside authenticated context
-              result = page.evaluate('''async () => {
-                  try {
-                      const res = await fetch('https://api.duolingopro.net/request', {
-                          method: 'POST',
-                          headers: {
-                              'Content-Type': 'application/json'
-                          },
-                          body: JSON.stringify({
-                              gain_type: 'super',
-                              amount: 1
-                          })
-                      });
-                      return await res.json();
-                  } catch (e) {
-                      return { error: e.toString() };
-                  }
-              }''')
-
-              print(f'📝 Server Response: {result}')
-              browser.close()
-          "
+          curl -s -X POST "https://duo-bot-api.onrender.com/api/session/complete" \
+            -H "Authorization: Bearer $DUO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "userId": "YOUR_DUOLINGO_USER_ID",
+              "challengeTime": 60
+            }'
