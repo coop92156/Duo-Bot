@@ -19,6 +19,6 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{
               "duolingoToken": "'"$DUO_TOKEN"'",
-              "userId": "PASTE_YOUR_NUMERIC_ID_HERE",
+              "userId": "1672849858",
               "challengeTime": 60
             }'
